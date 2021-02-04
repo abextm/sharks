@@ -95,8 +95,14 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	this->toolbar = new QToolBar(this);
 	this->toolbar->setAutoFillBackground(true);
 
-	//TODO: choose a better location for this (top of screen with cursor maybe?)
-	this->toolbar->move(this->cursorPosition + QPoint(50, 0));
+	{
+		QRect geo = screen->geometry();
+		QPoint pt(
+			qBound(geo.left(), geo.center().x() - (toolbar->width() / 2), geo.right()),
+			geo.top() + 40);
+
+		this->toolbar->move(pt);
+	}
 
 	auto *dragHandle = new DragHandle(this->toolbar);
 	this->toolbar->addWidget(dragHandle);
