@@ -250,8 +250,6 @@ void ShotItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	win->selectionEnd = QPoint();
 	win->selectionMoved();
 }
-void ShotItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
-}
 void ShotItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 	if (event->buttons().testFlag(Qt::LeftButton)) {
 		win->selectionEnd = event->screenPos();
@@ -261,7 +259,7 @@ void ShotItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 void ShotItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
 	QPoint pos = event->pos().toPoint();
 	auto *win = this->win;
-	for (const OpenWindow &w : win->openWindows) {
+	for (const OpenWindow &w : qAsConst(win->openWindows)) {
 		if (w.geometry.contains(pos)) {
 			win->selectionStart = w.geometry.topLeft();
 			win->selectionEnd = w.geometry.bottomRight();

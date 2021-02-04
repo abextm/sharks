@@ -40,3 +40,5 @@ add_executable(sharks
 )
 
 target_link_libraries(sharks PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::X11Extras XCB::XFIXES qhotkey)
+
+target_compile_options(sharks PRIVATE -Wall -Wextra -pedantic -Werror -Wno-multichar)

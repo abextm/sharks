@@ -39,7 +39,6 @@ class ShotItem : public QGraphicsPixmapItem {
 	virtual void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *) override;
 	virtual void mouseMoveEvent(QGraphicsSceneMouseEvent *) override;
 	virtual void mousePressEvent(QGraphicsSceneMouseEvent *) override;
-	virtual void mouseReleaseEvent(QGraphicsSceneMouseEvent *) override;
 
  private:
 	SelectionWindow *win;

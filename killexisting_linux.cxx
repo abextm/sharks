@@ -49,7 +49,8 @@ void setupKillExisting() {
 	qint64 myPid = QApplication::applicationPid();
 
 	// for some reason QDirIterator is about 1000 times slower than entryList
-	for (const QString &fileName : QDir("/proc/").entryList()) {
+	const auto dirEntries = QDir("/proc/").entryList();
+	for (const QString &fileName : dirEntries) {
 		QString filePath = "/proc/" + fileName;
 		qint64 pid = fileName.toLongLong();
 		if (pid == 0 || pid == myPid) {
