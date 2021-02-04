@@ -204,13 +204,8 @@ void SelectionWindow::selectionMoved() {
 	QPainterPath path;
 	path.addRect(this->desktopGeometry);
 	if (!this->selectionStart.isNull() && !this->selectionEnd.isNull()) {
-		int x1 = this->selectionStart.x();
-		int y1 = this->selectionStart.y();
-		int x2 = this->selectionEnd.x();
-		int y2 = this->selectionEnd.y();
-		this->selection = QRect(
-			QPoint(qMin(x1, x2), qMin(y1, y2)),
-			QPoint(qMax(x1, x2), qMax(y1, y2)));
+		QRect sel(this->selectionStart, this->selectionEnd);
+		this->selection = sel.normalized();
 
 		QPainterPath selection;
 		selection.addRect(this->selection);
