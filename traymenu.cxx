@@ -7,6 +7,7 @@
 #include <QDebug>
 #include <QIcon>
 #include <QSystemTrayIcon>
+#include <QThread>
 
 #include "QHotkey/qhotkey.h"
 #include "selectionwindow.hxx"
@@ -22,6 +23,14 @@ TrayMenu::TrayMenu(QWidget *parent) : QMenu(parent) {
 	connect(takeScreenshotHotkey, &QHotkey::activated, this, [takeScreenshot]() {
 		takeScreenshot->activate(QAction::Trigger);
 	});
+	if (!takeScreenshotHotkey->isRegistered() && QHotkey::isPlatformSupported()) {
+		// sometimes the killed duplicate is still holding the keybind, so wait a bit for it to finish
+		QThread::sleep(50);
+		takeScreenshotHotkey->setRegistered(true);
+		if (takeScreenshotHotkey->isRegistered()) {
+			qInfo() << "howkey now registered";
+		}
+	}
 
 	addSeparator();
 
