@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QLabel>
 
 #include "killexisting.hxx"
 #include "selectionwindow.hxx"
@@ -26,6 +27,12 @@ int main(int argc, char *argv[]) {
 #endif
 
 	cli.process(app);
+
+	{
+		QLabel foo("foo");
+		// Calling this early saves some time opening the screenshot window, since it can be quite slow to load the default fonts
+		foo.minimumSizeHint();
+	}
 
 	if (cli.isSet(now)) {
 		SelectionWindow w;

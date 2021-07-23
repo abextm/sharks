@@ -4,8 +4,12 @@
 #include "selectionwindow.hxx"
 
 #ifdef Q_OS_LINUX
+#include <errno.h>
+#include <sys/shm.h>
+#include <xcb/shm.h>
 #include <xcb/xfixes.h>
 
+#include <QDebug>
 #include <QVector>
 #include <QX11Info>
 #include <tuple>
@@ -27,10 +31,7 @@ QImage getX11Cursor() {
 	QImage img(evr->width, evr->height, QImage::Format_ARGB32_Premultiplied);
 	for (int y = 0; y < evr->height; y++) {
 		uint32_t *line = reinterpret_cast<uint32_t *>(img.scanLine(y));
-		for (int x = 0; x < evr->width; x++) {
-			auto px = pixdata[y * evr->width + x];
-			line[x] = px;
-		}
+		memcpy(line, &pixdata[y * evr->width], evr->width * 4);
 	}
 	img.setOffset(QPoint(evr->xhot, evr->yhot));
 	return img;
@@ -140,5 +141,71 @@ QList<OpenWindow> getX11Windows() {
 	walkWindowTree(out, con, QPoint(0, 0), reply.data());
 
 	return out;
+}
+
+class SharedMemory {
+ public:
+	SharedMemory(int id) : id(id) {}
+	void free() {
+		if (id >= 0) {
+			shmctl(id, IPC_RMID, nullptr);
+			id = -1;
+		}
+	}
+	~SharedMemory() {
+		this->free();
+	}
+	int id;
+};
+
+static void detachShm(void *data) {
+	shmdt(data);
+}
+
+QPixmap getX11Screenshot(QRect geometry) {
+	auto *con = QX11Info::connection();
+	xcb_generic_error_t *err = nullptr;
+
+	auto screen = xcb_setup_roots_iterator(xcb_get_setup(con)).data;
+
+	if (screen->root_depth != 32 && screen->root_depth != 24) {
+		qWarning() << "using slow screen grab because root is" << screen->root_depth << "bpp";
+		return QPixmap();
+	}
+
+	int size = geometry.width() * 4 * geometry.height();
+	SharedMemory shm(shmget(IPC_PRIVATE, size, IPC_CREAT | 0777));
+	if (shm.id == -1) {
+		qWarning() << "unable to create shared memory" << errno;
+		return QPixmap();
+	}
+
+	xcb_shm_seg_t shmseg = xcb_generate_id(con);
+	auto shmAttachCookie = xcb_shm_attach_checked(con, shmseg, shm.id, 0);
+	auto shmgetCookie = xcb_shm_get_image(con, screen->root, geometry.x(), geometry.y(), geometry.width(), geometry.height(), ~0, XCB_IMAGE_FORMAT_Z_PIXMAP, shmseg, 0);
+	xcb_shm_detach(con, shmseg);
+
+	err = xcb_request_check(con, shmAttachCookie);
+	if (err != nullptr) {
+		qWarning() << "unable to attach shmem" << err;
+		free(err);
+	}
+
+	PodPtr<xcb_shm_get_image_reply_t> shmgetReply(xcb_shm_get_image_reply(con, shmgetCookie, &err));
+	if (xcbErr(shmgetReply.data(), err, "unable to get screenshot with xshm")) {
+		return QPixmap();
+	}
+
+	if (shmgetReply->depth != 32 && shmgetReply->depth != 24) {
+		qWarning() << "somehow got a" << shmgetReply->depth << "bpp image";
+		return QPixmap();
+	}
+
+	void *data = shmat(shm.id, nullptr, 0);
+	shm.free();
+
+	QImage img((quint8 *)data, geometry.width(), geometry.height(), QImage::Format_RGB32, &detachShm, data);
+	auto pixmap = QPixmap::fromImage(img);
+	return pixmap;
 }
 #endif

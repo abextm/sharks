@@ -23,7 +23,7 @@ set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets X11Extras REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets X11Extras REQUIRED)
 
-find_package(XCB COMPONENTS XFIXES REQUIRED)
+find_package(XCB COMPONENTS XFIXES SHM REQUIRED)
 
 add_executable(sharks
 	main.cxx
@@ -39,6 +39,6 @@ add_executable(sharks
 	resources/resources.qrc
 )
 
-target_link_libraries(sharks PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::X11Extras XCB::XFIXES qhotkey)
+target_link_libraries(sharks PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::X11Extras XCB::XFIXES XCB::SHM qhotkey)
 
 target_compile_options(sharks PRIVATE -Wall -Wextra -pedantic -Werror -Wno-multichar)

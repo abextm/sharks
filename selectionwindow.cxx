@@ -25,6 +25,7 @@
 #include <QStandardPaths>
 #ifdef Q_OS_LINUX
 #include <QX11Info>
+QPixmap getX11Screenshot(QRect desktopGeometry);
 QImage getX11Cursor();
 QList<OpenWindow> getX11Windows();
 #endif
@@ -36,14 +37,22 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 		selectionStart(),
 		selectionEnd(),
 		selection(),
+		shot(),
 		cursor() {
 	this->cursorPosition = QCursor::pos();
 	QScreen *screen = QGuiApplication::screenAt(this->cursorPosition);
 	this->desktopGeometry = screen->virtualGeometry();
 
-	// you can only grab relative to the screen, but it works to grab the whole virtual desktop
-	QRect screenGeometry = screen->geometry();
-	this->shot = screen->grabWindow(0, -screenGeometry.x(), -screenGeometry.y(), this->desktopGeometry.width(), this->desktopGeometry.height());
+#ifdef Q_OS_LINUX
+	if (QX11Info::isPlatformX11()) {
+		this->shot = getX11Screenshot(this->desktopGeometry);
+	}
+#endif
+	if (this->shot.isNull()) {
+		// you can only grab relative to the screen, but it works to grab the whole virtual desktop
+		QRect screenGeometry = screen->geometry();
+		this->shot = screen->grabWindow(0, -screenGeometry.x(), -screenGeometry.y(), this->desktopGeometry.width(), this->desktopGeometry.height());
+	}
 
 	QPixmap p;
 #ifdef Q_OS_LINUX
@@ -73,8 +82,9 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	this->cursor = p;
 
 	this->setWindowFlags(Qt::FramelessWindowHint | Qt::Popup);
+	this->setAttribute(Qt::WA_DeleteOnClose);
 
-	this->scene = new QGraphicsScene();
+	this->scene = new QGraphicsScene(this);
 
 	this->selectionView = new QGraphicsView(this);
 	this->selectionView->setViewport(new QOpenGLWidget(this->selectionView));
@@ -88,7 +98,6 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	this->shotItem->setOffset(0, 0);
 	this->cursorItem = this->scene->addPixmap(this->cursor);
 	this->cursorItem->setOffset(this->cursorPosition);
-
 	this->selectionItem = this->scene->addPath(QPainterPath(), QPen(), QColor(0, 0, 0, 175));
 	this->selectionItem->setPos(0, 0);
 
@@ -129,8 +138,9 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	connect(saveas, &QAction::triggered, this, [this]() {
 		auto filename = QFileDialog::getSaveFileName(this, "Save screenshot", this->savePath(), "*.png");
 		if (!filename.isEmpty()) {
-			this->close();
+			this->setVisible(false);
 			this->saveTo(filename);
+			this->close();
 		}
 	});
 	this->toolbar->addAction(saveas);
@@ -138,10 +148,11 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	auto *upload = new QAction(QIcon::fromTheme("document-send"), "Upload", this);
 	upload->setShortcut(QKeySequence(Qt::Key_Enter));
 	connect(upload, &QAction::triggered, this, [this]() {
-		this->close();
+		this->setVisible(false);
 		QString path = this->savePath();
 		this->saveTo(path);
 		qInfo() << QProcess::execute("ymup", QStringList({"-if", path}));
+		this->close();
 	});
 	this->toolbar->addAction(upload);
 
