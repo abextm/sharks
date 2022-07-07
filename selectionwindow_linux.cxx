@@ -11,13 +11,16 @@
 
 #include <QDebug>
 #include <QVector>
-#include <QX11Info>
 #include <tuple>
 
 #include "x11atoms.hxx"
 
 QImage getX11Cursor() {
-	auto *con = QX11Info::connection();
+	auto *con = getXCBConnection();
+	if (!con) {
+		return QImage();
+	}
+
 	auto imgCookie = xcb_xfixes_get_cursor_image(con);
 
 	xcb_generic_error_t *err = nullptr;
@@ -128,7 +131,10 @@ static void walkWindowTree(QList<OpenWindow> &out, xcb_connection_t *con, QPoint
 QList<OpenWindow> getX11Windows() {
 	QList<OpenWindow> out;
 
-	auto *con = QX11Info::connection();
+	auto *con = getXCBConnection();
+	if (!con) {
+		return out;
+	}
 	auto screen = xcb_setup_roots_iterator(xcb_get_setup(con)).data;
 
 	auto treeQueryCookie = xcb_query_tree(con, screen->root);
@@ -163,7 +169,11 @@ static void detachShm(void *data) {
 }
 
 QPixmap getX11Screenshot(QRect geometry) {
-	auto *con = QX11Info::connection();
+	auto *con = getXCBConnection();
+	if (!con) {
+		return QPixmap();
+	}
+
 	xcb_generic_error_t *err = nullptr;
 
 	auto screen = xcb_setup_roots_iterator(xcb_get_setup(con)).data;

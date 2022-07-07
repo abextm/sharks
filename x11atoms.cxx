@@ -3,9 +3,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #include "x11atoms.hxx"
 
+#include <QtGlobal>
 #include <QDebug>
 #include <QMetaProperty>
+#include <QGuiApplication>
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QX11Info>
+#endif
 
 #ifdef Q_OS_LINUX
 
@@ -62,9 +66,22 @@ X11Atoms::X11Atoms(xcb_connection_t *con, QObject *parent)
 
 X11Atoms *X11Atoms::INSTANCE = nullptr;
 
+xcb_connection_t *getXCBConnection() {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+		return QX11Info::connection();
+#else
+		auto *guiApp = qobject_cast<QGuiApplication*>(QGuiApplication::instance());
+		auto *x11App = guiApp->nativeInterface<QNativeInterface::QX11Application>();
+		if (x11App == nullptr) {
+			return nullptr;
+		}
+		return x11App->connection();
+#endif
+}
+
 const X11Atoms *X11Atoms::get() {
 	if (INSTANCE == nullptr) {
-		auto *con = QX11Info::connection();
+		auto *con = getXCBConnection();
 		if (con == nullptr) {
 			return nullptr;
 		}

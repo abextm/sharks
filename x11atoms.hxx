@@ -17,6 +17,8 @@ using PodPtr = QScopedPointer<C, QScopedPointerPodDeleter>;
 QDebug operator<<(QDebug debug, const xcb_generic_error_t *err);
 bool xcbErr(const void *data, xcb_generic_error_t *err, const char *msg);
 
+xcb_connection_t *getXCBConnection();
+
 class X11Atoms final : public QObject {
 	Q_OBJECT
  private:

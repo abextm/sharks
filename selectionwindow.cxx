@@ -24,7 +24,6 @@
 #include <QShortcut>
 #include <QStandardPaths>
 #ifdef Q_OS_LINUX
-#include <QX11Info>
 QPixmap getX11Screenshot(QRect desktopGeometry);
 QImage getX11Cursor();
 QList<OpenWindow> getX11Windows();
@@ -44,9 +43,7 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	this->desktopGeometry = screen->virtualGeometry();
 
 #ifdef Q_OS_LINUX
-	if (QX11Info::isPlatformX11()) {
-		this->shot = getX11Screenshot(this->desktopGeometry);
-	}
+	this->shot = getX11Screenshot(this->desktopGeometry);
 #endif
 	if (this->shot.isNull()) {
 		// you can only grab relative to the screen, but it works to grab the whole virtual desktop
@@ -56,7 +53,7 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 
 	QPixmap p;
 #ifdef Q_OS_LINUX
-	if (QX11Info::isPlatformX11()) {
+	{
 		auto i = getX11Cursor();
 		if (!i.isNull()) {
 			p = QPixmap::fromImage(i);
@@ -243,11 +240,20 @@ DragHandle::DragHandle(QWidget *moveParent) : QLabel(" ⠿ ", moveParent), moveP
 DragHandle::~DragHandle() {
 }
 void DragHandle::mousePressEvent(QMouseEvent *ev) {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	this->dragStart = this->moveParent->mapFromGlobal(ev->globalPos());
+#else
+	this->dragStart = this->moveParent->mapFromGlobal(ev->globalPosition()).toPoint();
+#endif
 }
 void DragHandle::mouseMoveEvent(QMouseEvent *ev) {
 	if (ev->buttons().testFlag(Qt::LeftButton)) {
-		QPoint newPos = qobject_cast<QWidget *>(this->moveParent->parent())->mapFromGlobal(ev->globalPos());
+		QWidget *superParent = qobject_cast<QWidget *>(this->moveParent->parent());
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+		QPoint newPos = superParent->mapFromGlobal(ev->globalPos());
+#else
+		QPoint newPos = superParent->mapFromGlobal(ev->globalPosition()).toPoint();
+#endif
 		this->moveParent->move(newPos - this->dragStart);
 	}
 }
