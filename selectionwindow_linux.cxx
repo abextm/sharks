@@ -211,8 +211,13 @@ QPixmap getX11Screenshot(QRect geometry) {
 		return QPixmap();
 	}
 
-	void *data = shmat(shm.id, nullptr, 0);
+	quint32 *data = (quint32 *)shmat(shm.id, nullptr, 0);
 	shm.free();
+
+	// Qt does not render Images/Pixmaps with RGB32 correctly if they do not have 0xFF alpha set
+	for (size_t i = 0, len = geometry.width() * geometry.height(); i < len; i++) {
+		data[i] |= 0xFF000000;
+	}
 
 	QImage img((quint8 *)data, geometry.width(), geometry.height(), QImage::Format_RGB32, &detachShm, data);
 	auto pixmap = QPixmap::fromImage(img);

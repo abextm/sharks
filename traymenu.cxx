@@ -32,6 +32,18 @@ TrayMenu::TrayMenu(QWidget *parent) : QMenu(parent) {
 		}
 	}
 
+	auto *picker = new QAction(QIcon("find-location-symbolic"), "Color picker", this);
+	connect(picker, &QAction::triggered, this, [this]() {
+		auto *win = new SelectionWindow(this);
+		win->setPicking(true);
+		win->setVisible(true);
+	});
+	this->addAction(picker);
+	auto *pickerHotkey = new QHotkey(QKeySequence(Qt::ALT | Qt::Key_Print), true, this);
+	connect(pickerHotkey, &QHotkey::activated, this, [picker]() {
+		picker->activate(QAction::Trigger);
+	});
+
 	addSeparator();
 
 	auto *exit = new QAction(QIcon::fromTheme("exit"), "Exit", this);
