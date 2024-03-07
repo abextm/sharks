@@ -12,32 +12,42 @@
 #include <QDebug>
 #include <QDir>
 #include <QSocketNotifier>
+#include "selectionwindow.hxx"
 
-static const int MAGIC_SIGVAL = 'SHRK';
-static int exitNotifierFd[2] = {-1, -1};
+static const quint32 MAGIC_SIG_EXIT = 'SKEX';
+static const quint32 MAGIC_SIG_SCREENSHOT = 'SKSC';
+static const quint32 MAGIC_SIG_PICKER = 'SKPK';
+static int sigNotifierFd[2] = {-1, -1};
 
 void sigusr1Action(int sig, siginfo_t *info, void *ucontext) {
 	Q_UNUSED(sig)
 	Q_UNUSED(ucontext);
 
-	if (info->si_int == MAGIC_SIGVAL) {
-		quint8 a = 0;
-		write(exitNotifierFd[0], &a, sizeof(a));
-	}
+	quint32 v = info->si_int;
+	write(sigNotifierFd[0], &v, sizeof(v));
 }
 
 void setupKillExisting() {
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, exitNotifierFd)) {
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sigNotifierFd)) {
 		qWarning() << "unable to create kill socket notifier";
 	}
 
-	auto *exitNotifier = new QSocketNotifier(exitNotifierFd[1], QSocketNotifier::Read, QApplication::instance());
+	auto *exitNotifier = new QSocketNotifier(sigNotifierFd[1], QSocketNotifier::Read, QApplication::instance());
 	QObject::connect(exitNotifier, &QSocketNotifier::activated, []() {
-		quint8 a;
-		read(exitNotifierFd[1], &a, sizeof(a));
+		quint32 a;
+		read(sigNotifierFd[1], &a, sizeof(a));
 
-		qInfo() << "Killed by new instance";
-		QApplication::exit(0);
+		if (a == MAGIC_SIG_EXIT) {
+			qInfo() << "Killed by new instance";
+			QApplication::exit(0);
+		} else if (a == MAGIC_SIG_SCREENSHOT) {
+			auto *win = new SelectionWindow();
+			win->setVisible(true);
+		} else if (a == MAGIC_SIG_PICKER) {
+			auto *win = new SelectionWindow();
+			win->setPicking(true);
+			win->setVisible(true);
+		}
 	});
 
 	struct sigaction act = {};
@@ -89,7 +99,7 @@ void setupKillExisting() {
 		{
 			qInfo() << "asking" << pid << "to exit";
 			union sigval sig = {};
-			sig.sival_int = MAGIC_SIGVAL;
+			sig.sival_int = MAGIC_SIG_EXIT;
 			sigqueue(pid, SIGUSR1, sig);
 		}
 	nextfile:;

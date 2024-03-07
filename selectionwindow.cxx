@@ -27,6 +27,7 @@
 #include <QShortcut>
 #include <QStandardPaths>
 #ifdef Q_OS_LINUX
+#include "wayland.hxx"
 QPixmap getX11Screenshot(QRect desktopGeometry);
 QImage getX11Cursor();
 QList<OpenWindow> getX11Windows();
@@ -47,10 +48,17 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 		cursor() {
 	this->cursorPosition = QCursor::pos();
 	QScreen *screen = QGuiApplication::screenAt(this->cursorPosition);
+	if (screen == nullptr) {
+		screen = QGuiApplication::primaryScreen();
+	}
 	this->desktopGeometry = screen->virtualGeometry();
 
 #ifdef Q_OS_LINUX
-	this->shot = getX11Screenshot(this->desktopGeometry);
+	if (isWayland()) {
+		this->shot = getWaylandScreenshot(this->desktopGeometry);
+	} else {
+		this->shot = getX11Screenshot(this->desktopGeometry);
+	}
 #endif
 	if (this->shot.isNull()) {
 		// you can only grab relative to the screen, but it works to grab the whole virtual desktop
@@ -60,7 +68,7 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 
 	QPixmap p;
 #ifdef Q_OS_LINUX
-	{
+	if (!isWayland()) {
 		auto i = getX11Cursor();
 		if (!i.isNull()) {
 			p = QPixmap::fromImage(i);
@@ -239,6 +247,16 @@ void SelectionWindow::setPicking(bool picking) {
 		this->shotToolbar->move(this->pickToolbar->pos());
 		this->cursorItem->setVisible(this->showCursor->isChecked());
 	}
+}
+
+void SelectionWindow::setVisible(bool visible) {
+	QWidget::setVisible(visible);
+
+#ifdef Q_OS_LINUX
+	if (visible && isWayland()) {
+		swayFullscreen();
+	}
+#endif
 }
 
 bool SelectionWindow::event(QEvent *event) {

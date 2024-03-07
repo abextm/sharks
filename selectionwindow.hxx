@@ -129,6 +129,7 @@ class SelectionWindow : public QWidget {
 	virtual ~SelectionWindow();
 
 	void setPicking(bool picking);
+	virtual void setVisible(bool visible) override;
 
  protected:
 	virtual bool event(QEvent *) override;

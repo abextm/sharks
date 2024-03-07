@@ -35,9 +35,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (cli.isSet(now)) {
-		SelectionWindow w;
-		w.setAttribute(Qt::WA_QuitOnClose);
-		w.setVisible(true);
+		auto *w = new SelectionWindow;
+		w->setAttribute(Qt::WA_QuitOnClose);
+		w->setVisible(true);
 		return app.exec();
 	}
 
