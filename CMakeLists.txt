@@ -69,4 +69,4 @@ if ("${QT}" STREQUAL "Qt6")
 endif()
 
 add_compile_definitions(QT_DISABLE_DEPRECATED_UP_TO=0x050F00)
-target_compile_options(sharks PRIVATE -Wall -Wextra -pedantic -Werror -Wno-multichar)
+target_compile_options(sharks PRIVATE -Wall -Wextra -pedantic -Wno-multichar)
