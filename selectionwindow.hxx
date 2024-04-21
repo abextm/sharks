@@ -143,6 +143,7 @@ class SelectionWindow : public QWidget {
  private:
 	void geometryChanged(QEvent *);
 
+	QPixmap pixmap();
 	void saveTo(QString path);
 	QString savePath();
 

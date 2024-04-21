@@ -151,6 +151,16 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	this->shotToolbar->addAction(this->showCursor);
 
 	this->shotToolbar->addSeparator();
+	
+	auto *copy = new QAction(QIcon::fromTheme("edit-copy"), "Copy", this);
+	connect(copy, &QAction::triggered, this, [this]() {
+		this->close();
+		auto pixmap = this->pixmap();
+		pixmap.save(this->savePath());
+		auto *clipboard = QGuiApplication::clipboard();
+		clipboard->setPixmap(pixmap);
+	});
+	this->shotToolbar->addAction(copy);
 
 	auto *save = new QAction(QIcon::fromTheme("document-save"), "Save", this);
 	connect(save, &QAction::triggered, this, [this]() {
@@ -269,7 +279,7 @@ bool SelectionWindow::event(QEvent *event) {
 	return QWidget::event(event);
 }
 
-void SelectionWindow::saveTo(QString path) {
+QPixmap SelectionWindow::pixmap() {
 	QRect selection = this->selection;
 	if (selection.isEmpty()) {
 		selection = this->desktopGeometry;
@@ -280,8 +290,11 @@ void SelectionWindow::saveTo(QString path) {
 	QPixmap pixmap(selection.size());
 	QPainter painter(&pixmap);
 	this->scene->render(&painter, pixmap.rect(), selection);
-
-	pixmap.save(path);
+	
+	return pixmap;
+}
+void SelectionWindow::saveTo(QString path) {
+	this->pixmap().save(path);
 }
 QString SelectionWindow::savePath() {
 	QDateTime now = QDateTime::currentDateTime();
