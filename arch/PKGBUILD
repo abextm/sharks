@@ -1,0 +1,44 @@
+# Maintainer: Max Weber <abex at runelite dot net>
+
+pkgname=sharks
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Sharks screenshot utility'
+arch=('x86_64')
+url='https://github.com/abextm/sharks'
+license=('MPL-2.0')
+depends=(
+    'glibc'
+    'gcc-libs'
+    'qt6-base'
+    'extra-cmake-modules'
+)
+optdepends=(
+#    'libxcb: X11 specific optimizations'
+#    'wayland: Wayland support'
+)
+makedepends=(
+    'cmake'
+    'qt6-tools'
+)
+source=()
+sha256sums=()
+
+_srcdir="/test"
+
+build() {
+    cmake -B build -S "$_srcdir" \
+        -DCMAKE_BUILD_TYPE='None' \
+        -DCMAKE_INSTALL_PREFIX='/usr'
+    cmake --build build
+}
+
+package() {
+    install -D -m755 \
+        "${srcdir}/build/sharks" \
+        "${pkgdir}/usr/bin/sharks"
+
+    install -D -m644 \
+        "${_srcdir}/LICENSE" \
+        "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}
