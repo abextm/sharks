@@ -6,6 +6,7 @@
 #include <QLabel>
 
 #include "killexisting.hxx"
+#include "platform.hxx"
 #include "selectionwindow.hxx"
 #include "traymenu.hxx"
 
@@ -13,6 +14,8 @@ int main(int argc, char *argv[]) {
 	QApplication app(argc, argv);
 	QApplication::setApplicationName("sharks");
 	QApplication::setApplicationDisplayName("Sharks");
+
+	Platform::init();
 
 	QCommandLineParser cli;
 	cli.addHelpOption();

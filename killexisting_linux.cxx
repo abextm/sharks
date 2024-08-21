@@ -12,6 +12,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QSocketNotifier>
+
 #include "selectionwindow.hxx"
 
 static const quint32 MAGIC_SIG_EXIT = 'SKEX';

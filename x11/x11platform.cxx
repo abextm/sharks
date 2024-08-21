@@ -1,47 +1,47 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-#include "selectionwindow.hxx"
 
-#ifdef Q_OS_LINUX
-#include <errno.h>
+#ifdef SHARKS_HAS_X
+#include "x11platform.hxx"
+
 #include <sys/shm.h>
 #include <xcb/shm.h>
 #include <xcb/xfixes.h>
 
-#include <QDebug>
-#include <QVector>
-#include <tuple>
+#include <cerrno>
 
-#include "x11atoms.hxx"
+X11Platform::X11Platform() {
+	this->conn = Platform::nativeObject<QNativeInterface::QX11Application>()->connection();
+	this->atoms = new X11Atoms(this->conn, this);
+}
 
-QImage getX11Cursor() {
-	auto *con = getXCBConnection();
-	if (!con) {
-		return QImage();
-	}
+bool X11Platform::available() {
+	return Platform::nativeObject<QNativeInterface::QX11Application>() != nullptr;
+}
 
-	auto imgCookie = xcb_xfixes_get_cursor_image(con);
+QImage X11Platform::getCursorImage() {
+	auto imgCookie = xcb_xfixes_get_cursor_image(this->conn);
 
 	xcb_generic_error_t *err = nullptr;
-	PodPtr<xcb_xfixes_get_cursor_image_reply_t> evr(xcb_xfixes_get_cursor_image_reply(con, imgCookie, &err));
+	PodPtr<xcb_xfixes_get_cursor_image_reply_t> evr(
+		xcb_xfixes_get_cursor_image_reply(this->conn, imgCookie, &err));
 	if (err) {
 		free(err);
-		return QImage();
+		return {};
 	}
 
 	uint32_t *pixdata = xcb_xfixes_get_cursor_image_cursor_image(evr.data());
 	QImage img(evr->width, evr->height, QImage::Format_ARGB32_Premultiplied);
 	for (int y = 0; y < evr->height; y++) {
-		uint32_t *line = reinterpret_cast<uint32_t *>(img.scanLine(y));
+		auto *line = reinterpret_cast<uint32_t *>(img.scanLine(y));
 		memcpy(line, &pixdata[y * evr->width], evr->width * 4);
 	}
 	img.setOffset(QPoint(evr->xhot, evr->yhot));
 	return img;
 }
 
-static void walkWindowTree(QList<OpenWindow> &out, xcb_connection_t *con, QPoint parent, xcb_query_tree_reply_t *parentGeo) {
-	const auto *atoms = X11Atoms::get();
+static void walkWindowTree(xcb_connection_t *con, const X11Atoms *atoms, QList<OpenWindow> &out, QPoint parent, xcb_query_tree_reply_t *parentGeo) {
 	const auto *children = xcb_query_tree_children(parentGeo);
 	const auto len = xcb_query_tree_children_length(parentGeo);
 	QVector<std::tuple<xcb_window_t, xcb_query_tree_cookie_t, xcb_get_geometry_cookie_t, xcb_get_window_attributes_cookie_t, xcb_get_property_cookie_t, xcb_get_property_cookie_t, xcb_get_property_cookie_t>> cookies;
@@ -123,35 +123,31 @@ static void walkWindowTree(QList<OpenWindow> &out, xcb_connection_t *con, QPoint
 		}
 
 		if (xcb_query_tree_children_length(treeReply.data()) > 0) {
-			walkWindowTree(out, con, loc, treeReply.data());
+			walkWindowTree(con, atoms, out, loc, treeReply.data());
 		}
 	}
 }
 
-QList<OpenWindow> getX11Windows() {
+QList<OpenWindow> X11Platform::getOpenWindows() {
 	QList<OpenWindow> out;
 
-	auto *con = getXCBConnection();
-	if (!con) {
-		return out;
-	}
-	auto screen = xcb_setup_roots_iterator(xcb_get_setup(con)).data;
+	auto screen = xcb_setup_roots_iterator(xcb_get_setup(this->conn)).data;
 
-	auto treeQueryCookie = xcb_query_tree(con, screen->root);
+	auto treeQueryCookie = xcb_query_tree(this->conn, screen->root);
 	xcb_generic_error_t *err = nullptr;
-	PodPtr<xcb_query_tree_reply_t> reply(xcb_query_tree_reply(con, treeQueryCookie, &err));
+	PodPtr<xcb_query_tree_reply_t> reply(xcb_query_tree_reply(this->conn, treeQueryCookie, &err));
 	if (xcbErr(reply.data(), err, "unable to query window tree root")) {
 		return out;
 	}
 
-	walkWindowTree(out, con, QPoint(0, 0), reply.data());
+	walkWindowTree(this->conn, this->atoms, out, QPoint(0, 0), reply.data());
 
 	return out;
 }
 
 class SharedMemory {
  public:
-	SharedMemory(int id) : id(id) {}
+	explicit SharedMemory(int id) : id(id) {}
 	void free() {
 		if (id >= 0) {
 			shmctl(id, IPC_RMID, nullptr);
@@ -168,26 +164,22 @@ static void detachShm(void *data) {
 	shmdt(data);
 }
 
-QPixmap getX11Screenshot(QRect geometry) {
-	auto *con = getXCBConnection();
-	if (!con) {
-		return QPixmap();
-	}
-
+QPixmap X11Platform::getScreenshot(QRect geometry) {
 	xcb_generic_error_t *err = nullptr;
+	auto *con = this->conn;
 
-	auto screen = xcb_setup_roots_iterator(xcb_get_setup(con)).data;
+	auto screen = xcb_setup_roots_iterator(xcb_get_setup(this->conn)).data;
 
 	if (screen->root_depth != 32 && screen->root_depth != 24) {
 		qWarning() << "using slow screen grab because root is" << screen->root_depth << "bpp";
-		return QPixmap();
+		return Platform::getScreenshot(geometry);
 	}
 
 	int size = geometry.width() * 4 * geometry.height();
 	SharedMemory shm(shmget(IPC_PRIVATE, size, IPC_CREAT | 0777));
 	if (shm.id == -1) {
 		qWarning() << "unable to create shared memory" << errno;
-		return QPixmap();
+		return Platform::getScreenshot(geometry);
 	}
 
 	xcb_shm_seg_t shmseg = xcb_generate_id(con);
@@ -199,19 +191,20 @@ QPixmap getX11Screenshot(QRect geometry) {
 	if (err != nullptr) {
 		qWarning() << "unable to attach shmem" << err;
 		free(err);
+		return Platform::getScreenshot(geometry);
 	}
 
 	PodPtr<xcb_shm_get_image_reply_t> shmgetReply(xcb_shm_get_image_reply(con, shmgetCookie, &err));
 	if (xcbErr(shmgetReply.data(), err, "unable to get screenshot with xshm")) {
-		return QPixmap();
+		return Platform::getScreenshot(geometry);
 	}
 
 	if (shmgetReply->depth != 32 && shmgetReply->depth != 24) {
 		qWarning() << "somehow got a" << shmgetReply->depth << "bpp image";
-		return QPixmap();
+		return Platform::getScreenshot(geometry);
 	}
 
-	quint32 *data = (quint32 *)shmat(shm.id, nullptr, 0);
+	auto *data = reinterpret_cast<quint32 *>(shmat(shm.id, nullptr, 0));
 	shm.free();
 
 	// Qt does not render Images/Pixmaps with RGB32 correctly if they do not have 0xFF alpha set
@@ -220,7 +213,7 @@ QPixmap getX11Screenshot(QRect geometry) {
 	}
 
 	QImage img((quint8 *)data, geometry.width(), geometry.height(), QImage::Format_RGB32, &detachShm, data);
-	auto pixmap = QPixmap::fromImage(img);
-	return pixmap;
+	return QPixmap::fromImage(img);
 }
+
 #endif

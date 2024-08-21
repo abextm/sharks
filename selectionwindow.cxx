@@ -7,9 +7,7 @@
 #include <QButtonGroup>
 #include <QClipboard>
 #include <QDateTime>
-#include <QDebug>
 #include <QFileDialog>
-#include <QGraphicsPathItem>
 #include <QGraphicsPixmapItem>
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
@@ -18,7 +16,6 @@
 #include <QKeySequence>
 #include <QMetaObject>
 #include <QMetaProperty>
-#include <QMoveEvent>
 #include <QOpenGLWidget>
 #include <QPainterPath>
 #include <QProcess>
@@ -26,14 +23,10 @@
 #include <QScreen>
 #include <QShortcut>
 #include <QStandardPaths>
-#ifdef Q_OS_LINUX
-#include "wayland.hxx"
-QPixmap getX11Screenshot(QRect desktopGeometry);
-QImage getX11Cursor();
-QList<OpenWindow> getX11Windows();
-#endif
 
-//#define NO_FULLSCREEN
+#include "platform.hxx"
+
+// #define NO_FULLSCREEN
 
 SelectionWindow::SelectionWindow(QWidget *parent)
 	: QWidget(parent),
@@ -53,45 +46,14 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	}
 	this->desktopGeometry = screen->virtualGeometry();
 
-#ifdef Q_OS_LINUX
-	if (isWayland()) {
-		this->shot = getWaylandScreenshot(this->desktopGeometry);
-	} else {
-		this->shot = getX11Screenshot(this->desktopGeometry);
-	}
-#endif
-	if (this->shot.isNull()) {
-		// you can only grab relative to the screen, but it works to grab the whole virtual desktop
-		QRect screenGeometry = screen->geometry();
-		this->shot = screen->grabWindow(0, -screenGeometry.x(), -screenGeometry.y(), this->desktopGeometry.width(), this->desktopGeometry.height());
-	}
+	this->shot = platform->getScreenshot(this->desktopGeometry);
 
-	QPixmap p;
-#ifdef Q_OS_LINUX
-	if (!isWayland()) {
-		auto i = getX11Cursor();
-		if (!i.isNull()) {
-			p = QPixmap::fromImage(i);
-			this->cursorPosition -= i.offset();
-		}
+	auto cursorImage = platform->getCursorImage();
+	this->cursor = QPixmap::fromImage(cursorImage);
+	this->cursorPosition -= cursorImage.offset();
 
-		this->openWindows = getX11Windows();
-	}
-#endif
-	if (p.isNull()) {
-		QCursor c;
-		p = c.pixmap();
-		if (p.isNull()) {
-			auto b = c.bitmap(Qt::ReturnByValue);
-			if (b.isNull()) {
-				qInfo() << "unable to get cursor image";
-			} else {
-				p = QPixmap(b);
-			}
-		}
-		this->cursorPosition -= c.hotSpot();
-	}
-	this->cursor = p;
+	this->openWindows = platform->getOpenWindows();
+
 #ifndef NO_FULLSCREEN
 	this->setWindowFlags(Qt::FramelessWindowHint | Qt::Popup);
 #else
@@ -151,7 +113,7 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	this->shotToolbar->addAction(this->showCursor);
 
 	this->shotToolbar->addSeparator();
-	
+
 	auto *copy = new QAction(QIcon::fromTheme("edit-copy"), "Copy", this);
 	connect(copy, &QAction::triggered, this, [this]() {
 		this->close();
@@ -262,11 +224,7 @@ void SelectionWindow::setPicking(bool picking) {
 void SelectionWindow::setVisible(bool visible) {
 	QWidget::setVisible(visible);
 
-#ifdef Q_OS_LINUX
-	if (visible && isWayland()) {
-		swayFullscreen();
-	}
-#endif
+	platform->waylandFullscreen();
 }
 
 bool SelectionWindow::event(QEvent *event) {
@@ -290,7 +248,7 @@ QPixmap SelectionWindow::pixmap() {
 	QPixmap pixmap(selection.size());
 	QPainter painter(&pixmap);
 	this->scene->render(&painter, pixmap.rect(), selection);
-	
+
 	return pixmap;
 }
 void SelectionWindow::saveTo(QString path) {
@@ -571,10 +529,4 @@ void ShotItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 			win->pickMoved();
 		}
 	}
-}
-
-QDebug operator<<(QDebug debug, const OpenWindow &win) {
-	QDebugStateSaver saver(debug);
-	debug.nospace() << "Win(" << win.name << win.geometry << ')';
-	return debug;
 }

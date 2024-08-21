@@ -3,15 +3,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #include "x11atoms.hxx"
 
-#include <QtGlobal>
-#include <QDebug>
-#include <QMetaProperty>
-#include <QGuiApplication>
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-#include <QX11Info>
-#endif
+#ifdef SHARKS_HAS_X
 
-#ifdef Q_OS_LINUX
+#include <QDebug>
+#include <QGuiApplication>
+#include <QMetaProperty>
+#include <QtGlobal>
 
 QDebug operator<<(QDebug debug, const xcb_generic_error_t *err) {
 	if (err) {
@@ -62,32 +59,6 @@ X11Atoms::X11Atoms(xcb_connection_t *con, QObject *parent)
 		}
 		this->setProperty(prop.name(), QVariant(reply->atom));
 	}
-}
-
-X11Atoms *X11Atoms::INSTANCE = nullptr;
-
-xcb_connection_t *getXCBConnection() {
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-		return QX11Info::connection();
-#else
-		auto *guiApp = qobject_cast<QGuiApplication*>(QGuiApplication::instance());
-		auto *x11App = guiApp->nativeInterface<QNativeInterface::QX11Application>();
-		if (x11App == nullptr) {
-			return nullptr;
-		}
-		return x11App->connection();
-#endif
-}
-
-const X11Atoms *X11Atoms::get() {
-	if (INSTANCE == nullptr) {
-		auto *con = getXCBConnection();
-		if (con == nullptr) {
-			return nullptr;
-		}
-		INSTANCE = new X11Atoms(con);
-	}
-	return INSTANCE;
 }
 
 #endif

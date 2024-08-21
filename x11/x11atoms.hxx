@@ -4,12 +4,11 @@
 #ifndef X11ATOMS_HXX
 #define X11ATOMS_HXX
 
+#ifdef SHARKS_HAS_X
+
 #include <QObject>
-
-#ifdef Q_OS_LINUX
-#include <xcb/xcb.h>
-
 #include <QScopedPointer>
+#include <xcb/xcb.h>
 
 template <class C>
 using PodPtr = QScopedPointer<C, QScopedPointerPodDeleter>;
@@ -17,17 +16,13 @@ using PodPtr = QScopedPointer<C, QScopedPointerPodDeleter>;
 QDebug operator<<(QDebug debug, const xcb_generic_error_t *err);
 bool xcbErr(const void *data, xcb_generic_error_t *err, const char *msg);
 
-xcb_connection_t *getXCBConnection();
-
 class X11Atoms final : public QObject {
 	Q_OBJECT
  private:
 	Q_DISABLE_COPY(X11Atoms)
-	X11Atoms(xcb_connection_t *con, QObject *parent = nullptr);
-	static X11Atoms *INSTANCE;
-
  public:
-	static const X11Atoms *get();
+	X11Atoms(xcb_connection_t *con, QObject *parent = nullptr);
+
 #define ATOM_PROP(name) \
 	Q_PROPERTY(xcb_atom_t name MEMBER name FINAL) \
 	xcb_atom_t name;

@@ -14,6 +14,8 @@
 #include <QToolButton>
 #include <QWidget>
 
+#include "platform.hxx"
+
 class SelectionWindow;
 
 class DragHandle : public QLabel {
@@ -109,13 +111,6 @@ class ShotItem : public QGraphicsPixmapItem {
  private:
 	SelectionWindow *win;
 };
-
-struct OpenWindow {
- public:
-	QRect geometry;
-	QString name;
-};
-QDebug operator<<(QDebug, const OpenWindow &);
 
 class SelectionWindow : public QWidget {
 	Q_OBJECT

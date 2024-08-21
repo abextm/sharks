@@ -71,6 +71,8 @@ Thumbs.db
 *.dll
 *.exe
 
+.idea
+
 
 CMakeLists.txt.user
 
