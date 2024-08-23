@@ -7,11 +7,11 @@
 
 #ifdef SHARKS_HAS_WAYLAND
 
+#include <QGuiApplication>
 #include <platform.hxx>
 
-#include <QGuiApplication>
-
 class Sway;
+class Hyprland;
 class WLRScreengrabber;
 
 class WaylandPlatform : public Platform {
@@ -20,6 +20,7 @@ class WaylandPlatform : public Platform {
 
 	QNativeInterface::QWaylandApplication *qWayland;
 	Sway *sway;
+	Hyprland *hyprland;
 	WLRScreengrabber *wlrScreengrabber;
 
  public:

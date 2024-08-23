@@ -51,8 +51,10 @@ struct OutputGrab {
 
 		QImage::Format qfmt = QImage::Format_Invalid;
 		switch (this->format) {
-			// case WL_SHM_FORMAT_ARGB8888: qfmt = QImage::Format_ARGB32_Premultiplied; break;
-			// case WL_SHM_FORMAT_XRGB8888: qfmt = QImage::Format_BGR32; break;
+			//case WL_SHM_FORMAT_ARGB8888: qfmt = QImage::Format_ARGB32_Premultiplied; break;
+			case WL_SHM_FORMAT_XRGB8888:
+				qfmt = QImage::Format_ARGB32;
+				break;
 			case WL_SHM_FORMAT_RGB888:
 				qfmt = QImage::Format_BGR888;
 				break;

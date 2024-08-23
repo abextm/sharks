@@ -66,6 +66,8 @@ add_executable(sharks
 	wayland/sway.hxx
 	wayland/wlrscreengrabber.cxx
 	wayland/wlrscreengrabber.hxx
+	wayland/hyprland.cxx
+	wayland/hyprland.hxx
 )
 
 if (HAS_WAYLAND)

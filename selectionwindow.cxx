@@ -224,7 +224,9 @@ void SelectionWindow::setPicking(bool picking) {
 void SelectionWindow::setVisible(bool visible) {
 	QWidget::setVisible(visible);
 
-	platform->waylandFullscreen();
+	if (visible) {
+		platform->waylandFullscreen();
+	}
 }
 
 bool SelectionWindow::event(QEvent *event) {

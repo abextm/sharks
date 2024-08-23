@@ -6,12 +6,16 @@
 
 #ifdef SHARKS_HAS_WAYLAND
 
+#include <QTimer>
+
+#include "hyprland.hxx"
 #include "sway.hxx"
 #include "wlrscreengrabber.hxx"
 
 WaylandPlatform::WaylandPlatform()
 	: qWayland(Platform::nativeObject<QNativeInterface::QWaylandApplication>()),
 		sway(Sway::create()),
+		hyprland(Hyprland::create()),
 		wlrScreengrabber(WLRScreengrabber::create(qWayland->display())) {
 }
 
@@ -21,6 +25,9 @@ bool WaylandPlatform::available() {
 void WaylandPlatform::waylandFullscreen() {
 	if (this->sway) {
 		this->sway->fullscreen();
+	}
+	if (this->hyprland) {
+		QTimer::singleShot(250, this, [this]() { this->hyprland->fullscreen(); });
 	}
 }
 QPixmap WaylandPlatform::getScreenshot(QRect geometry) {
