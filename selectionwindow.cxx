@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #include "selectionwindow.hxx"
 
+#include <QActionGroup>
 #include <QBitmap>
 #include <QButtonGroup>
 #include <QClipboard>
@@ -114,6 +115,21 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 
 	this->shotToolbar->addSeparator();
 
+	auto toolGroup = new QActionGroup(this->shotToolbar);
+
+	this->selectArea = new QAction(QIcon::fromTheme("view-restore"), "Select area", this);
+	toolGroup->addAction(this->selectArea);
+	this->selectArea->setCheckable(true);
+	this->selectArea->setChecked(true);
+
+	this->penTool = new QAction(QIcon::fromTheme("xapp-edit-symbolic"), "Draw", this);
+	toolGroup->addAction(this->penTool);
+	this->penTool->setCheckable(true);
+
+	this->shotToolbar->addActions(toolGroup->actions());
+
+	this->shotToolbar->addSeparator();
+
 	auto *copy = new QAction(QIcon::fromTheme("edit-copy"), "Copy", this);
 	connect(copy, &QAction::triggered, this, [this]() {
 		this->close();
@@ -193,6 +209,18 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	this->pickToolbar->addAction(close);
 
 	this->pickTooltip = new ZoomTooltip(this);
+
+	this->undoStack = new QUndoStack(this);
+
+	{
+		auto undo = this->undoStack->createUndoAction(this);
+		undo->setShortcut(QKeySequence("Ctrl+Z"));
+		this->addAction(undo);
+
+		auto redo = this->undoStack->createRedoAction(this);
+		redo->setShortcut(QKeySequence("Ctrl+Shift+Z"));
+		this->addAction(redo);
+	}
 
 	this->selectionMoved();
 
@@ -490,10 +518,13 @@ void ShotItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 			win->pickPos = event->screenPos();
 			win->pickSelected();
 		}
-	} else {
+	} else if (win->selectArea->isChecked()) {
 		win->selectionStart = event->screenPos();
 		win->selectionEnd = QPoint();
 		win->selectionMoved();
+	} else if (win->penTool->isChecked()) {
+		win->activeDrawing = new PenDrawing(QPen(QBrush(QColor(0xFF0000)), 4), event->screenPos());
+		win->scene->addItem(win->activeDrawing);
 	}
 }
 void ShotItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
@@ -502,15 +533,27 @@ void ShotItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 			win->pickPos = event->screenPos();
 			win->pickMoved();
 		}
-	} else {
+	} else if (win->selectArea->isChecked()) {
 		if (event->buttons().testFlag(Qt::LeftButton)) {
 			win->selectionEnd = event->screenPos();
 			win->selectionMoved();
 		}
+	} else if (win->penTool->isChecked()) {
+		if (win->activeDrawing) {
+			win->activeDrawing->addPoint(event->screenPos());
+		}
+	}
+}
+void ShotItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+	if (!win->picking && win->penTool->isChecked()) {
+		if (win->activeDrawing) {
+			win->undoStack->push(new DrawingUndoItem(win, win->activeDrawing));
+			win->activeDrawing = nullptr;
+		}
 	}
 }
 void ShotItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
-	if (win->picking) {
+	if (win->picking || !win->selectArea->isChecked()) {
 		return;
 	}
 	QPoint pos = event->pos().toPoint();
@@ -530,5 +573,61 @@ void ShotItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 			win->pickPos = event->screenPos();
 			win->pickMoved();
 		}
+	}
+}
+
+PenDrawing::PenDrawing(QPen pen, QPoint start)
+	: rawPath(),
+		bounds(start.x() - pen.widthF(), start.y() - pen.widthF(), pen.widthF() * 2, pen.widthF() * 2),
+		strokedPath() {
+	setPen(pen);
+	this->rawPath.moveTo(start.x() - 1, start.y() - 1);
+	this->rawPath.lineTo(start);
+}
+PenDrawing::~PenDrawing() {
+}
+QRectF PenDrawing::boundingRect() const {
+	return this->bounds;
+}
+void PenDrawing::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+	this->updateStrokedPath();
+	painter->fillPath(this->strokedPath, this->pen().brush());
+}
+void PenDrawing::addPoint(QPoint pt) {
+	this->prepareGeometryChange();
+	this->strokedPath.clear();
+	this->rawPath.lineTo(pt);
+	QRectF ptBounds(pt.x() - pen().widthF(), pt.y() - pen().widthF(), pen().widthF() * 2, pen().widthF() * 2);
+	this->bounds = this->bounds.united(ptBounds);
+}
+void PenDrawing::updateStrokedPath() {
+	if (this->strokedPath.isEmpty()) {
+		QPainterPathStroker qpps(this->pen());
+		qpps.setWidth(4);
+		qpps.setCapStyle(Qt::PenCapStyle::RoundCap);
+		qpps.setJoinStyle(Qt::PenJoinStyle::RoundJoin);
+		this->strokedPath = qpps.createStroke(this->rawPath);
+	}
+}
+
+DrawingUndoItem::DrawingUndoItem(SelectionWindow *parent, QGraphicsItem *item)
+	: parent(parent),
+		item(item),
+		owned(false) {
+}
+DrawingUndoItem::~DrawingUndoItem() {
+	if (owned) {
+		delete this->item;
+	}
+}
+void DrawingUndoItem::undo() {
+	owned = true;
+	this->parent->scene->removeItem(this->item);
+}
+void DrawingUndoItem::redo() {
+	// this is spuriously called by QUndoStack when added
+	if (owned) {
+		owned = false;
+		this->parent->scene->addItem(this->item);
 	}
 }

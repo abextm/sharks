@@ -12,6 +12,7 @@
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
+#include <QUndoStack>
 #include <QWidget>
 
 #include "platform.hxx"
@@ -100,16 +101,46 @@ class ZoomTooltip : public QWidget {
 class ShotItem : public QGraphicsPixmapItem {
  public:
 	ShotItem(SelectionWindow *);
-	~ShotItem();
+	virtual ~ShotItem();
 
  protected:
 	virtual void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *) override;
 	virtual void mouseMoveEvent(QGraphicsSceneMouseEvent *) override;
 	virtual void mousePressEvent(QGraphicsSceneMouseEvent *) override;
+	virtual void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	virtual void hoverMoveEvent(QGraphicsSceneHoverEvent *) override;
 
  private:
 	SelectionWindow *win;
+};
+
+class PenDrawing : public QAbstractGraphicsShapeItem {
+	QPainterPath rawPath;
+	QRectF bounds;
+	QPainterPath strokedPath;
+
+	void updateStrokedPath();
+
+ public:
+	PenDrawing(QPen pen, QPoint start);
+	virtual ~PenDrawing();
+
+	void addPoint(QPoint);
+
+	QRectF boundingRect() const override;
+	void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
+};
+
+class DrawingUndoItem : public QUndoCommand {
+	SelectionWindow *parent;
+	QGraphicsItem *item;
+	bool owned;
+ public:
+	explicit DrawingUndoItem(SelectionWindow *parent, QGraphicsItem *item);
+	virtual ~DrawingUndoItem();
+
+	void undo() override;
+	void redo() override;
 };
 
 class SelectionWindow : public QWidget {
@@ -118,6 +149,7 @@ class SelectionWindow : public QWidget {
 	Q_DISABLE_COPY(SelectionWindow)
 
 	friend ShotItem;
+	friend DrawingUndoItem;
 
  public:
 	explicit SelectionWindow(QWidget *parent = nullptr);
@@ -153,6 +185,9 @@ class SelectionWindow : public QWidget {
 	QAction *togglePicker;
 	QAction *showCursor;
 
+	QAction *selectArea;
+	QAction *penTool;
+
 	QToolBar *pickToolbar;
 
 	QGraphicsView *selectionView;
@@ -175,5 +210,8 @@ class SelectionWindow : public QWidget {
 
 	QPoint cursorPosition;
 	QPixmap cursor;
+
+	QUndoStack *undoStack;
+	PenDrawing *activeDrawing;
 };
 #endif
