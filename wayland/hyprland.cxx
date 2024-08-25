@@ -26,8 +26,6 @@ void Hyprland::sendMessage(QByteArray message) {
 	sock->connectToServer(this->socketPath, QIODevice::ReadWrite);
 	sock->waitForConnected();
 
-	qInfo() << QString(message);
-
 	sock->write(message);
 	sock->flush();
 
