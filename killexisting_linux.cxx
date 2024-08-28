@@ -4,7 +4,7 @@
 #include "killexisting.hxx"
 
 #ifdef Q_OS_LINUX
-#include <signal.h>
+#include <csignal>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -74,7 +74,8 @@ void setupKillExisting() {
 				continue;
 			}
 			QByteArray cmdline = cmdlineFile.readAll();
-			if (!cmdline.split(0).at(0).endsWith("/sharks")) {
+			auto procName = cmdline.split(0).at(0);
+			if (procName != "sharks" && !procName.endsWith("/sharks")) {
 				continue;
 			}
 		}
