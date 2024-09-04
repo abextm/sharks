@@ -4,13 +4,33 @@
 #include "traymenu.hxx"
 
 #include <QApplication>
-#include <QDebug>
 #include <QIcon>
 #include <QSystemTrayIcon>
 #include <QThread>
 
 #include "QHotkey/qhotkey.h"
+#include "config.hxx"
 #include "selectionwindow.hxx"
+
+static void addGlobalKey(QAction *action, std::string_view name, bool *retryAdd) {
+	for (const auto &key : Config::parseHotkeys(config->root["globalkeys"][name])) {
+		auto *hotkey = new QHotkey(key, true, action);
+		QObject::connect(hotkey, &QHotkey::activated, action, [action]() {
+			action->activate(QAction::Trigger);
+		});
+		if (!hotkey->isRegistered()) {
+			if (*retryAdd) {
+				// sometimes the killed duplicate is still holding the keybind, so wait a bit for it to finish
+				QThread::sleep(50);
+				*retryAdd = false;
+				hotkey->setRegistered(true);
+				if (!hotkey->isRegistered()) {
+					qInfo() << "Failed to register" << key << "for" << name;
+				}
+			}
+		}
+	}
+}
 
 TrayMenu::TrayMenu(QWidget *parent) : QMenu(parent) {
 	auto *takeScreenshot = new QAction(QIcon(":/icon.svg"), "Take screenshot", this);
@@ -19,20 +39,6 @@ TrayMenu::TrayMenu(QWidget *parent) : QMenu(parent) {
 		win->setVisible(true);
 	});
 	this->addAction(takeScreenshot);
-	if (QHotkey::isPlatformSupported()) {
-		auto *takeScreenshotHotkey = new QHotkey(QKeySequence(Qt::CTRL | Qt::Key_Print), true, this);
-		connect(takeScreenshotHotkey, &QHotkey::activated, this, [takeScreenshot]() {
-			takeScreenshot->activate(QAction::Trigger);
-		});
-		if (!takeScreenshotHotkey->isRegistered()) {
-			// sometimes the killed duplicate is still holding the keybind, so wait a bit for it to finish
-			QThread::sleep(50);
-			takeScreenshotHotkey->setRegistered(true);
-			if (takeScreenshotHotkey->isRegistered()) {
-				qInfo() << "hotkey now registered";
-			}
-		}
-	}
 
 	auto *picker = new QAction(QIcon("find-location-symbolic"), "Color picker", this);
 	connect(picker, &QAction::triggered, this, [this]() {
@@ -41,11 +47,11 @@ TrayMenu::TrayMenu(QWidget *parent) : QMenu(parent) {
 		win->setVisible(true);
 	});
 	this->addAction(picker);
+
 	if (QHotkey::isPlatformSupported()) {
-		auto *pickerHotkey = new QHotkey(QKeySequence(Qt::ALT | Qt::Key_Print), true, this);
-		connect(pickerHotkey, &QHotkey::activated, this, [picker]() {
-			picker->activate(QAction::Trigger);
-		});
+		bool retryAdd = true;
+		addGlobalKey(takeScreenshot, "screenshot", &retryAdd);
+		addGlobalKey(picker, "picker", &retryAdd);
 	}
 
 	addSeparator();

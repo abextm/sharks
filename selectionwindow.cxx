@@ -25,6 +25,7 @@
 #include <QShortcut>
 #include <QStandardPaths>
 
+#include "config.hxx"
 #include "platform.hxx"
 
 // #define NO_FULLSCREEN
@@ -125,50 +126,99 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	this->penTool = new QAction(QIcon::fromTheme("xapp-edit-symbolic"), "Draw", this);
 	toolGroup->addAction(this->penTool);
 	this->penTool->setCheckable(true);
-
+	this->penTool->setShortcuts(Config::parseHotkeys(config->root["pen"]["key"]));
 	this->shotToolbar->addActions(toolGroup->actions());
 
 	this->shotToolbar->addSeparator();
 
-	auto *copy = new QAction(QIcon::fromTheme("edit-copy"), "Copy", this);
-	connect(copy, &QAction::triggered, this, [this]() {
-		this->close();
-		auto pixmap = this->pixmap();
-		pixmap.save(this->savePath());
-		auto *clipboard = QGuiApplication::clipboard();
-		clipboard->setPixmap(pixmap);
-	});
-	this->shotToolbar->addAction(copy);
+	auto actions = Config::get<toml::table>(&config->root, "action", "action should be a table of tables");
+	if (actions) {
+		for (auto &entry : *actions) {
+			if (entry.second.is_table()) {
+				auto tab = entry.second.as_table();
+				if (!Config::get<bool>(tab, "enabled", "enabled should be a boolean").value_or(true)) {
+					continue;
+				}
 
-	auto *save = new QAction(QIcon::fromTheme("document-save"), "Save", this);
-	connect(save, &QAction::triggered, this, [this]() {
-		this->close();
-		this->saveTo(this->savePath());
-	});
-	this->shotToolbar->addAction(save);
+				auto name = Config::get<std::string>(tab, "name", "name must be a string", "name must be set");
+				auto action = Config::get<std::string>(tab, "action", "action must be a string", "action must be set");
+				if (!name || !action) {
+					continue;
+				}
 
-	auto *saveas = new QAction(QIcon::fromTheme("document-save-as"), "Save-as", this);
-	saveas->setShortcut(QKeySequence("Ctrl+S"));
-	connect(saveas, &QAction::triggered, this, [this]() {
-		auto filename = QFileDialog::getSaveFileName(this, "Save screenshot", this->savePath(), "*.png");
-		if (!filename.isEmpty()) {
-			this->setVisible(false);
-			this->saveTo(filename);
-			this->close();
+				auto *qAction = new QAction(QString::fromStdString(*name), this);
+
+				auto icon = Config::get<std::string>(tab, "icon", "icon must be a string");
+				if (icon) {
+					qAction->setIcon(QIcon::fromTheme(QString::fromStdString(*icon)));
+				}
+
+				qAction->setShortcuts(Config::parseHotkeys((*tab)["key"]));
+
+				if (*action == "copy") {
+					connect(qAction, &QAction::triggered, this, [this]() {
+						this->close();
+						auto pixmap = this->pixmap();
+						pixmap.save(this->savePath());
+						auto *clipboard = QGuiApplication::clipboard();
+						clipboard->setPixmap(pixmap);
+					});
+				} else if (*action == "save-default") {
+					connect(qAction, &QAction::triggered, this, [this]() {
+						this->close();
+						this->saveTo(this->savePath());
+					});
+				} else if (*action == "save-as") {
+					connect(qAction, &QAction::triggered, this, [this]() {
+						auto filename = QFileDialog::getSaveFileName(this, "Save screenshot", this->savePath(), "*.png");
+						if (!filename.isEmpty()) {
+							this->close();
+							this->saveTo(filename);
+						}
+					});
+				} else if (*action == "exec") {
+					QList<QString> args;
+					auto tomlArgs = Config::get<toml::array>(tab, "args", "args must be an array of strings for exec");
+					if (!tomlArgs) {
+						delete qAction;
+						continue;
+					}
+
+					for (auto &arg : *tomlArgs) {
+						auto *str = arg.as_string();
+						if (!str) {
+							Config::complain(&arg, "args must be an array of string");
+							continue;
+						}
+						args.emplaceBack(QString::fromStdString(**str));
+					}
+
+					if (args.size() < 1) {
+						Config::complain((*tab)["args"], "args must have at least one entry");
+						delete qAction;
+						continue;
+					}
+					QString process = args.takeFirst();
+					args.append("");
+					connect(qAction, &QAction::triggered, this, [this, process, args]() mutable {
+						this->close();
+						QString path = this->savePath();
+						this->saveTo(path);
+						args[args.size() - 1] = path;
+						qInfo() << QProcess::execute(process, args);
+					});
+				} else {
+					Config::complain((*tab)["action"], QString("action must be one of copy, save-default, save-as, or exec"));
+					delete qAction;
+					continue;
+				}
+
+				this->shotToolbar->addAction(qAction);
+			} else {
+				Config::complain(&entry.second, "action should be a table of tables");
+			}
 		}
-	});
-	this->shotToolbar->addAction(saveas);
-
-	auto *upload = new QAction(QIcon::fromTheme("document-send"), "Upload", this);
-	upload->setShortcut(QKeySequence(Qt::Key_Enter));
-	connect(upload, &QAction::triggered, this, [this]() {
-		this->setVisible(false);
-		QString path = this->savePath();
-		this->saveTo(path);
-		qInfo() << QProcess::execute("ymup", QStringList({"-if", path}));
-		this->close();
-	});
-	this->shotToolbar->addAction(upload);
+	}
 
 	auto *pickSwatch = new ColorSwatch(this->pickToolbar);
 	this->pickToolbar->addWidget(pickSwatch);
@@ -523,8 +573,13 @@ void ShotItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 		win->selectionEnd = QPoint();
 		win->selectionMoved();
 	} else if (win->penTool->isChecked()) {
-		win->activeDrawing = new PenDrawing(QPen(QBrush(QColor(0xFF0000)), 4), event->screenPos());
-		win->scene->addItem(win->activeDrawing);
+		auto penTab = Config::get<toml::table>(&config->root, "pen", "missing pen table");
+		if (penTab) {
+			QColor color(Config::get<int64_t>(&*penTab, "color", "color should be an integer").value_or(0xFF0000));
+			qreal width = Config::get<qreal>(&*penTab, "width", "width should be a number").value_or(4);
+			win->activeDrawing = new PenDrawing(QPen(QBrush(color), width), event->screenPos());
+			win->scene->addItem(win->activeDrawing);
+		}
 	}
 }
 void ShotItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {

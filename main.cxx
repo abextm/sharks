@@ -5,6 +5,7 @@
 #include <QCommandLineParser>
 #include <QLabel>
 
+#include "config.hxx"
 #include "killexisting.hxx"
 #include "platform.hxx"
 #include "selectionwindow.hxx"
@@ -30,6 +31,8 @@ int main(int argc, char *argv[]) {
 #endif
 
 	cli.process(app);
+
+	Config::init();
 
 	{
 		QLabel foo("foo");

@@ -45,6 +45,14 @@ if (UNIX)
 	endif ()
 endif ()
 
+include(FetchContent)
+FetchContent_Declare(
+	tomlplusplus
+	GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+	GIT_TAG v3.4.0
+)
+FetchContent_MakeAvailable(tomlplusplus)
+
 add_executable(sharks
 	main.cxx
 	selectionwindow.cxx
@@ -68,6 +76,8 @@ add_executable(sharks
 	wayland/wlrscreengrabber.hxx
 	wayland/hyprland.cxx
 	wayland/hyprland.hxx
+	config.cxx
+	config.hxx
 )
 
 if (HAS_WAYLAND)
@@ -80,6 +90,7 @@ if (HAS_X)
 endif ()
 
 target_link_libraries(sharks PRIVATE qhotkey)
+target_link_libraries(sharks PRIVATE tomlplusplus)
 target_link_libraries(sharks PRIVATE ${QT}::Widgets ${QT}::Network ${QT}::OpenGLWidgets)
 
 target_compile_options(sharks PRIVATE -Wall -Wextra -pedantic -Wno-multichar)
