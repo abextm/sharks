@@ -12,6 +12,7 @@ depends=(
     'gcc-libs'
     'qt6-base'
     'extra-cmake-modules'
+    'tomlplusplus'
 )
 optdepends=(
     'libxcb: X11 specific optimizations'
