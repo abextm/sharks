@@ -119,8 +119,6 @@ WLRScreengrabber::~WLRScreengrabber() {
 static const wl_output_listener outputListener{
 	.geometry = [](void *data, wl_output *, int32_t x, int32_t y, int32_t, int32_t, int32_t, const char *, const char *, int32_t transform) {
 		WLROutput *o = (WLROutput*) data;
-		o->x = x;
-		o->y = y;
 		o->transform = transform; },
 	.mode = [](void *, wl_output *, uint32_t, int32_t, int32_t, int32_t) {},
 	.done = [](void *, wl_output *) {},
