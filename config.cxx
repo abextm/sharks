@@ -114,6 +114,7 @@ QList<QKeySequence> Config::parseHotkeys(toml::node_view<toml::node> &&node) {
 				Config::complain(toml::node_view(entry), "wanted a string");
 			}
 		}
+		return l;
 	} else if (node) {
 		Config::complain(node, "wanted a string or array of strings");
 	}
