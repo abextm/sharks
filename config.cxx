@@ -13,7 +13,7 @@ Config *config;
 
 static const char *DEFAULT_CONFIG = R"(# default sharks config
 
-# On wayland you can use pkill `sharks -q 1397445443 -SIGUSR1` to trigger a screenshot
+# On wayland you can use `pkill sharks -q 1397445443 -SIGUSR1` to trigger a screenshot
 # and `pkill sharks -q 1397444683 -SIGUSR1` to trigger the picker
 [globalkeys]
 screenshot = ["Ctrl+Print"]
