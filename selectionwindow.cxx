@@ -459,7 +459,7 @@ QSize ColorSwatch::sizeHint() const {
 }
 void ColorSwatch::setColor(QColor color) {
 	this->color = color;
-	this->repaint();
+	this->update();
 }
 
 ColorCopyButton::ColorCopyButton(QWidget *parent) : QPushButton(parent), format(ColorCopyButton::Format::CSS_HEX), color(Qt::white) {
@@ -540,7 +540,7 @@ void ZoomTooltip::paintEvent(QPaintEvent *ev) {
 void ZoomTooltip::setImage(QPixmap image) {
 	this->img = image;
 	this->doResize();
-	this->repaint();
+	this->update();
 }
 void ZoomTooltip::setScale(int scale) {
 	this->scale = scale;
