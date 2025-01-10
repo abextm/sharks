@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
 	cli.addHelpOption();
 	cli.addVersionOption();
 
-	QCommandLineOption now("now", "Immediatly takes a screenshot and exits");
+	QCommandLineOption now("now", "Immediately takes a screenshot and exits");
 	cli.addOption(now);
 
 #ifdef HAS_KILLEXISTING
