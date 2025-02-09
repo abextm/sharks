@@ -74,6 +74,7 @@ struct OutputGrab {
 struct WLROutput {
 	WLRScreengrabber *parent = nullptr;
 	wl_output *output = nullptr;
+	uint32_t name = 0;
 
 	zxdg_output_v1 *xdgOutput = nullptr;
 
@@ -83,9 +84,10 @@ struct WLROutput {
 
 	OutputGrab *grab = nullptr;
 
-	WLROutput(WLRScreengrabber *g, wl_output *output)
+	WLROutput(WLRScreengrabber *g, wl_output *output, uint32_t name)
 		: parent(g),
-			output(output) {
+			output(output),
+			name(name) {
 	}
 
 	~WLROutput() {
@@ -148,13 +150,25 @@ static const wl_registry_listener registryListener{
 		} else if (strcmp(interface, zwlr_screencopy_manager_v1_interface.name) == 0) {
 			self->copyMan = (zwlr_screencopy_manager_v1*) wl_registry_bind(registry, name, &zwlr_screencopy_manager_v1_interface, 1);
 		} else if (strcmp(interface, wl_output_interface.name) == 0) {
-			auto *output = new WLROutput(self, (wl_output*) wl_registry_bind(registry, name, &wl_output_interface, 3));
+			auto *output = new WLROutput(self, (wl_output*) wl_registry_bind(registry, name, &wl_output_interface, 3), name);
+			if (self->xdgOutputMan) {
+				output->xdgOutput = zxdg_output_manager_v1_get_xdg_output(self->xdgOutputMan, output->output);
+				zxdg_output_v1_add_listener(output->xdgOutput, &xdgOutputListener, output);
+			}
 			self->outputs.push_back(output);
 			wl_output_add_listener(output->output, &outputListener, output);
 		} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
 			self->xdgOutputMan = (zxdg_output_manager_v1*) wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, 2);
 		} },
-	.global_remove = [](void *, struct wl_registry *, uint32_t) {},
+	.global_remove = [](void *data, struct wl_registry *, uint32_t name) {
+		WLRScreengrabber *self = (WLRScreengrabber*) data;
+		self->outputs.removeIf([name](WLROutput *output){
+			if (output->name == name) {
+				delete output;
+				return true;
+			}
+			return false;
+		}); },
 };
 
 bool WLRScreengrabber::init() {
@@ -165,8 +179,10 @@ bool WLRScreengrabber::init() {
 		return false;
 	}
 	for (auto *output : this->outputs) {
-		output->xdgOutput = zxdg_output_manager_v1_get_xdg_output(this->xdgOutputMan, output->output);
-		zxdg_output_v1_add_listener(output->xdgOutput, &xdgOutputListener, output);
+		if (!output->xdgOutput) {
+			output->xdgOutput = zxdg_output_manager_v1_get_xdg_output(this->xdgOutputMan, output->output);
+			zxdg_output_v1_add_listener(output->xdgOutput, &xdgOutputListener, output);
+		}
 	}
 	wl_display_roundtrip_queue(this->dpy, this->q);
 	return true;
@@ -225,6 +241,10 @@ QImage WLRScreengrabber::grab(QRect geom) {
 
 	for (auto *output : this->outputs) {
 		auto grab = output->grab;
+		if (!grab) {
+			qDebug() << "failed to grab display" << output->x << output->y;
+			continue;
+		}
 		output->grab = nullptr;
 		auto img = grab->asQImage();
 		p.resetTransform();
