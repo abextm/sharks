@@ -93,4 +93,4 @@ target_link_libraries(sharks PRIVATE qhotkey)
 target_link_libraries(sharks PRIVATE tomlplusplus)
 target_link_libraries(sharks PRIVATE ${QT}::Widgets ${QT}::Network ${QT}::OpenGLWidgets)
 
-target_compile_options(sharks PRIVATE -Wall -Wextra -pedantic -Wno-multichar)
+target_compile_options(sharks PRIVATE -Wall -Wextra -pedantic -Wno-multichar -Wno-unused)

@@ -613,7 +613,7 @@ void ShotItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
 	}
 	QPoint pos = event->pos().toPoint();
 	auto *win = this->win;
-	for (const OpenWindow &w : qAsConst(win->openWindows)) {
+	for (const OpenWindow &w : std::as_const(win->openWindows)) {
 		if (w.geometry.contains(pos)) {
 			win->selectionStart = w.geometry.topLeft();
 			win->selectionEnd = w.geometry.bottomRight();
