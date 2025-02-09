@@ -100,11 +100,8 @@ struct WLROutput {
 WLRScreengrabber::WLRScreengrabber(wl_display *dpy)
 	: outputs() {
 	this->dpy = dpy;
-	auto wrappedDPY = (wl_display *)wl_proxy_create_wrapper(this->dpy);
-	this->q = wl_display_create_queue(this->dpy);
-	wl_proxy_set_queue((wl_proxy *)wrappedDPY, this->q);
-	this->reg = wl_display_get_registry(wrappedDPY);
-	wl_proxy_wrapper_destroy(wrappedDPY);
+	this->q = wl_proxy_get_queue((wl_proxy *)this->dpy);
+	this->reg = wl_display_get_registry(this->dpy);
 }
 
 WLRScreengrabber::~WLRScreengrabber() {
