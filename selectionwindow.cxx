@@ -205,7 +205,12 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 						QString path = this->savePath();
 						this->saveTo(path);
 						args[args.size() - 1] = path;
-						qInfo() << QProcess::execute(process, args);
+						auto *proc = new QProcess();
+						proc->setProcessChannelMode(QProcess::ForwardedChannels);
+						proc->start(process, args);
+						connect(proc, &QProcess::finished, proc, [proc](int, QProcess::ExitStatus) {
+							proc->deleteLater();
+						});
 					});
 				} else {
 					Config::complain((*tab)["action"], QString("action must be one of copy, save-default, save-as, or exec"));
