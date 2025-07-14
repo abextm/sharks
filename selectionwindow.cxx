@@ -26,6 +26,7 @@
 #include <QStandardPaths>
 
 #include "config.hxx"
+#include "confirmdialog.hxx"
 #include "platform.hxx"
 
 // #define NO_FULLSCREEN
@@ -159,27 +160,32 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 
 				qAction->setShortcuts(Config::parseHotkeys((*tab)["key"]));
 
+				std::function<void()> doAction{};
+
 				if (*action == "copy") {
-					connect(qAction, &QAction::triggered, this, [this]() {
+					doAction = [this]() {
 						this->close();
 						auto pixmap = this->pixmap();
 						pixmap.save(this->savePath());
 						auto *clipboard = QGuiApplication::clipboard();
 						clipboard->setPixmap(pixmap);
-					});
+					};
 				} else if (*action == "save-default") {
-					connect(qAction, &QAction::triggered, this, [this]() {
+					doAction = [this]() {
 						this->close();
 						this->saveTo(this->savePath());
-					});
+					};
 				} else if (*action == "save-as") {
-					connect(qAction, &QAction::triggered, this, [this]() {
+					doAction = [this]() {
+						this->hide();
 						auto filename = QFileDialog::getSaveFileName(this, "Save screenshot", this->savePath(), "*.png");
 						if (!filename.isEmpty()) {
 							this->close();
 							this->saveTo(filename);
+						} else {
+							this->show();
 						}
-					});
+					};
 				} else if (*action == "exec") {
 					QList<QString> args;
 					auto tomlArgs = Config::get<toml::array>(tab, "args", "args must be an array of strings for exec");
@@ -204,7 +210,7 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 					}
 					QString process = args.takeFirst();
 					args.append("");
-					connect(qAction, &QAction::triggered, this, [this, process, args]() mutable {
+					doAction = [this, process, args]() mutable {
 						this->close();
 						QString path = this->savePath();
 						this->saveTo(path);
@@ -215,11 +221,26 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 						connect(proc, &QProcess::finished, proc, [proc](int, QProcess::ExitStatus) {
 							proc->deleteLater();
 						});
-					});
+					};
 				} else {
 					Config::complain((*tab)["action"], QString("action must be one of copy, save-default, save-as, or exec"));
 					delete qAction;
 					continue;
+				}
+
+				auto confirm = Config::get<std::string>(tab, "confirm", "confirm must be a string", "");
+				if (!confirm.has_value() || confirm->empty()) {
+					connect(qAction, &QAction::triggered, this, doAction);
+				} else {
+					connect(qAction, &QAction::triggered, this, [this, confirm, doAction]() {
+						auto qv = new ConfirmDialog(this->pixmap(), QString::fromStdString(*confirm), this);
+						connect(qv, &ConfirmDialog::accepted, this, doAction);
+						connect(qv, &ConfirmDialog::rejected, this, &SelectionWindow::show);
+						qv->setVisible(true);
+
+						// wayland bullshittery - can't float a window w\o a parent
+						QTimer::singleShot(100, this, &QWidget::hide);
+					});
 				}
 
 				this->shotToolbar->addAction(qAction);
@@ -337,6 +358,8 @@ QPixmap SelectionWindow::pixmap() {
 	QPixmap pixmap(selection.size());
 	QPainter painter(&pixmap);
 	this->scene->render(&painter, pixmap.rect(), selection);
+
+	this->selectionItem->setVisible(true);
 
 	return pixmap;
 }

@@ -78,6 +78,9 @@ add_executable(sharks
 	wayland/hyprland.hxx
 	config.cxx
 	config.hxx
+	confirmdialog.hxx
+	confirmdialog.cxx
+	confirmdialog.ui
 )
 
 if (HAS_WAYLAND)

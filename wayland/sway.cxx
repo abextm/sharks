@@ -46,7 +46,7 @@ void Sway::sendPacket(quint32 type, QByteArray payload) {
 }
 
 void Sway::fullscreen() {
-	this->sendPacket(0 /* RUN_COMMAND */, QString("for_window [pid=%1] fullscreen enable global").arg(QCoreApplication::applicationPid()).toUtf8());
+	this->sendPacket(0 /* RUN_COMMAND */, QString("for_window [pid=%1 title=\"^Sharks$\"] fullscreen enable global").arg(QCoreApplication::applicationPid()).toUtf8());
 }
 
 #endif

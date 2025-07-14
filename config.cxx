@@ -49,6 +49,7 @@ name = "Upload"
 action = "exec"
 args = ["ymup", "-if"]
 icon = "document-send"
+confirm = "Are you sure you want to upload this image?"
 enabled = false
 )";
 
