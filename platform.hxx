@@ -37,6 +37,7 @@ class Platform : public QObject {
 	virtual QList<OpenWindow> getOpenWindows();
 	virtual QPixmap getScreenshot(QRect geometry);
 	virtual void waylandFullscreen();
+	virtual bool isWayland();
 };
 
 extern Platform *platform;

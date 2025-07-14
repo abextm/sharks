@@ -57,7 +57,11 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 	this->openWindows = platform->getOpenWindows();
 
 #ifndef NO_FULLSCREEN
-	this->setWindowFlags(Qt::FramelessWindowHint | Qt::Popup);
+	if (platform->isWayland()) {
+		this->setWindowFlags(Qt::FramelessWindowHint);
+	} else {
+		this->setWindowFlags(Qt::FramelessWindowHint | Qt::Popup);
+	}
 #else
 	this->setWindowFlags(Qt::Window);
 #endif
@@ -567,14 +571,14 @@ void ShotItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	if (win->picking) {
 		if (event->buttons().testFlag(Qt::MiddleButton)) {
 			win->pickedLock = !win->pickedLock;
-			win->pickPos = event->screenPos();
+			win->pickPos = event->scenePos().toPoint();
 			win->pickMoved();
 		} else if (event->buttons().testFlag(Qt::LeftButton)) {
-			win->pickPos = event->screenPos();
+			win->pickPos = event->scenePos().toPoint();
 			win->pickSelected();
 		}
 	} else if (win->selectArea->isChecked()) {
-		win->selectionStart = event->screenPos();
+		win->selectionStart = event->scenePos().toPoint();
 		win->selectionEnd = QPoint();
 		win->selectionMoved();
 	} else if (win->penTool->isChecked()) {
@@ -582,7 +586,7 @@ void ShotItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 		if (penTab) {
 			QColor color(Config::get<int64_t>(&*penTab, "color", "color should be an integer").value_or(0xFF0000));
 			qreal width = Config::get<qreal>(&*penTab, "width", "width should be a number").value_or(4);
-			win->activeDrawing = new PenDrawing(QPen(QBrush(color), width), event->screenPos());
+			win->activeDrawing = new PenDrawing(QPen(QBrush(color), width), event->scenePos().toPoint());
 			win->scene->addItem(win->activeDrawing);
 		}
 	}
@@ -590,17 +594,17 @@ void ShotItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 void ShotItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 	if (win->picking) {
 		if (event->buttons().testFlag(Qt::MiddleButton)) {
-			win->pickPos = event->screenPos();
+			win->pickPos = event->scenePos().toPoint();
 			win->pickMoved();
 		}
 	} else if (win->selectArea->isChecked()) {
 		if (event->buttons().testFlag(Qt::LeftButton)) {
-			win->selectionEnd = event->screenPos();
+			win->selectionEnd = event->scenePos().toPoint();
 			win->selectionMoved();
 		}
 	} else if (win->penTool->isChecked()) {
 		if (win->activeDrawing) {
-			win->activeDrawing->addPoint(event->screenPos());
+			win->activeDrawing->addPoint(event->scenePos().toPoint());
 		}
 	}
 }
@@ -630,7 +634,7 @@ void ShotItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
 void ShotItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 	if (win->picking) {
 		if (!win->pickedLock) {
-			win->pickPos = event->screenPos();
+			win->pickPos = event->scenePos().toPoint();
 			win->pickMoved();
 		}
 	}

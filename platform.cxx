@@ -67,3 +67,7 @@ QDebug operator<<(QDebug debug, const OpenWindow &win) {
 	debug.nospace() << "Win(" << win.name << win.geometry << ')';
 	return debug;
 }
+
+bool Platform::isWayland() {
+	return false;
+}

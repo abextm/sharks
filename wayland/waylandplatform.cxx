@@ -40,4 +40,8 @@ QPixmap WaylandPlatform::getScreenshot(QRect geometry) {
 	return Platform::getScreenshot(geometry);
 }
 
+bool WaylandPlatform::isWayland() {
+	return true;
+}
+
 #endif

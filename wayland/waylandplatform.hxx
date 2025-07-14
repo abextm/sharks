@@ -30,7 +30,7 @@ class WaylandPlatform : public Platform {
 
 	void waylandFullscreen() override;
 	QPixmap getScreenshot(QRect geometry) override;
-
+	bool isWayland() override;
 
 };
 

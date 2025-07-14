@@ -1,6 +1,7 @@
 #include "hyprland.hxx"
 
 #include <QCoreApplication>
+#include <QDebug>
 #include <QLocalSocket>
 
 #ifdef SHARKS_HAS_WAYLAND
