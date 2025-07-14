@@ -4,7 +4,6 @@
 #include "killexisting.hxx"
 
 #ifdef Q_OS_LINUX
-#include <csignal>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -12,6 +11,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QSocketNotifier>
+#include <csignal>
 
 #include "selectionwindow.hxx"
 

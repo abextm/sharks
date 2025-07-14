@@ -5,11 +5,11 @@
 #ifndef PLATFORM_HXX
 #define PLATFORM_HXX
 
-#include <QObject>
-#include <QImage>
-#include <QPixmap>
-#include <QGuiApplication>
 #include <QDebug>
+#include <QGuiApplication>
+#include <QImage>
+#include <QObject>
+#include <QPixmap>
 
 struct OpenWindow {
  public:
@@ -28,8 +28,8 @@ class Platform : public QObject {
 	static void init();
 
 	template <class T>
-	static T* nativeObject() {
-		auto *guiApp = qobject_cast<QGuiApplication*>(QGuiApplication::instance());
+	static T *nativeObject() {
+		auto *guiApp = qobject_cast<QGuiApplication *>(QGuiApplication::instance());
 		return guiApp->nativeInterface<T>();
 	}
 

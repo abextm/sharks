@@ -1,7 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
 #include "wlrscreengrabber.hxx"
 
 #ifdef SHARKS_HAS_WAYLAND
@@ -51,7 +50,7 @@ struct OutputGrab {
 
 		QImage::Format qfmt = QImage::Format_Invalid;
 		switch (this->format) {
-			//case WL_SHM_FORMAT_ARGB8888: qfmt = QImage::Format_ARGB32_Premultiplied; break;
+			// case WL_SHM_FORMAT_ARGB8888: qfmt = QImage::Format_ARGB32_Premultiplied; break;
 			case WL_SHM_FORMAT_XRGB8888:
 				qfmt = QImage::Format_ARGB32;
 				break;

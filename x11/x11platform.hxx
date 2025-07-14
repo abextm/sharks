@@ -1,7 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
 #ifndef X11PLATFORM_HXX
 #define X11PLATFORM_HXX
 
@@ -18,7 +17,7 @@ class X11Platform : public Platform {
 
  public:
 	X11Platform();
-	
+
 	static bool available();
 
 	QImage getCursorImage() override;

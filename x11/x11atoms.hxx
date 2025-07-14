@@ -6,9 +6,10 @@
 
 #ifdef SHARKS_HAS_X
 
+#include <xcb/xcb.h>
+
 #include <QObject>
 #include <QScopedPointer>
-#include <xcb/xcb.h>
 
 template <class C>
 using PodPtr = QScopedPointer<C, QScopedPointerPodDeleter>;

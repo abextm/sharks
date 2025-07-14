@@ -135,6 +135,7 @@ class DrawingUndoItem : public QUndoCommand {
 	SelectionWindow *parent;
 	QGraphicsItem *item;
 	bool owned;
+
  public:
 	explicit DrawingUndoItem(SelectionWindow *parent, QGraphicsItem *item);
 	virtual ~DrawingUndoItem();
