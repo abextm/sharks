@@ -11,6 +11,7 @@ ConfirmDialog::ConfirmDialog(QPixmap pixmap, QString message, QWidget *parent)
 	ui->setupUi(this);
 
 	this->setAttribute(Qt::WA_DeleteOnClose);
+	this->setWindowFlag(Qt::Tool);
 
 	this->ui->image->setPixmap(pixmap);
 	this->ui->message->setText(message);
