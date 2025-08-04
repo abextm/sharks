@@ -233,13 +233,18 @@ SelectionWindow::SelectionWindow(QWidget *parent)
 					connect(qAction, &QAction::triggered, this, doAction);
 				} else {
 					connect(qAction, &QAction::triggered, this, [this, confirm, doAction]() {
-						auto qv = new ConfirmDialog(this->pixmap(), QString::fromStdString(*confirm), this);
+						auto qv = new ConfirmDialog(this->pixmap(), QString::fromStdString(*confirm),
+							platform->isWayland() ? this : nullptr);
 						connect(qv, &ConfirmDialog::accepted, this, doAction);
 						connect(qv, &ConfirmDialog::rejected, this, &SelectionWindow::show);
 						qv->setVisible(true);
 
-						// wayland bullshittery - can't float a window w\o a parent
-						QTimer::singleShot(100, this, &QWidget::hide);
+						if (platform->isWayland()) {
+							// wayland bullshittery - can't float a window w\o a parent
+							QTimer::singleShot(100, this, &QWidget::hide);
+						} else {
+							this->hide();
+						}
 					});
 				}
 
